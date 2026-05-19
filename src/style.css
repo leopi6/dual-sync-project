@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* 定义专业设计 Token */
+  :root {
+    /* 深空基础色 */
+    --bg-base: #060818;
+    --bg-card: rgba(255, 255, 255, 0.03);
+    
+    /* 自定义主题色彩（默认状态） */
+    --accent-theme: #3b82f6; /* 李昊蓝 */
+    --accent-glow: rgba(59, 130, 246, 0.5);
+    
+    /* 玻璃拟态基础 Token */
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --blur: 20px;
+  }
+}
+
+/* 优雅的过度动效 */
+div, button, input, textarea {
+  @apply transition-all duration-300 ease-in-out;
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 深空主题核心色 */
+    --bg-base: #060818;
+    --bg-her: #1a0a2e;
+    --bg-him: #0a1a2e;
+    --bg-both: #0d1020;
+
+    /* 玻璃拟态特效 */
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    
+    /* 角色强调色 */
+    --accent-him: #3b82f6;
+    --accent-her: #f472b6;
+    --accent-bond: #a855f7;
+  }
+  
+  body {
+    @apply bg-[var(--bg-base)] text-white overflow-x-hidden antialiased;
+  }
+}
+
+@layer components {
+  /* 封装高级玻璃拟态卡片类 */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    @apply rounded-3xl;
+  }
+}
