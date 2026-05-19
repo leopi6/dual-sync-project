@@ -100,7 +100,9 @@
 
     type Mode = 'him' | 'bond' | 'her'
     const currentMode = ref<Mode>('him')
-    const pillRef = ref<HTMLElement | null>(null)
+   // 在 pillRef 定义上方加一行
+// @ts-ignore
+const pillRef = ref<HTMLElement | null>(null)
 
     const modes: { id: Mode, label: string }[] = [
     { id: 'him', label: '李昊' },
