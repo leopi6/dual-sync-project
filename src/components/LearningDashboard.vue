@@ -188,9 +188,15 @@
     id: `root-${userId}`, parentId: null, title: '请填写全局大目标', totalUnits: 0, completedUnits: 0, unitLabel: '进度', expectedDate: undefined, children: []
     })
 
-    // 为解决热刷新或路由切换导致的数据丢失，我们在此作用域外使用一个简单的缓存。
-    // 正式部署后，这里会走 API fetch 数据。
-    const globalStore = ref<Record<string, PlanNode>>({ him: initData('him'), her: initData('her') })
+const loadLocalData = (userId: string): PlanNode => {
+    const local = localStorage.getItem(`sync_store_${userId}`)
+    return local ? JSON.parse(local) : initData(userId)
+}
+
+const globalStore = ref<Record<string, PlanNode>>({
+    him: loadLocalData('him'),
+    her: loadLocalData('her')
+})
 
     const planData = ref<PlanNode>(globalStore.value[props.userId])
     const activeModule = ref<PlanNode>(planData.value)
@@ -268,33 +274,45 @@
     }
 
     const submitEditorForm = () => {
-    if (!editorForm.value.title) return
-    if (showEditModal.value) {
+  if (!editorForm.value.title) return
+  if (showEditModal.value) {
     modifyNodeInTree(planData.value, editingNodeId.value!, {
-    title: editorForm.value.title, totalUnits: nodeFormTotalValueIsLocked.value ? undefined : editorForm.value.totalUnits,
-    unitLabel: nodeFormTotalValueIsLocked.value ? undefined : editorForm.value.unitLabel, expectedDate: editorForm.value.expectedDate || undefined,
+      title: editorForm.value.title, totalUnits: nodeFormTotalValueIsLocked.value ? undefined : editorForm.value.totalUnits,
+      unitLabel: nodeFormTotalValueIsLocked.value ? undefined : editorForm.value.unitLabel, expectedDate: editorForm.value.expectedDate || undefined,
     })
-    } else if (showAddModal.value) {
+  } else if (showAddModal.value) {
     const newNode: PlanNode = {
-    id: `node-${Date.now()}`, parentId: activeModule.value.id, title: editorForm.value.title,
-    totalUnits: editorForm.value.totalUnits || 0, completedUnits: 0, unitLabel: editorForm.value.unitLabel || '项', expectedDate: editorForm.value.expectedDate || undefined, children: []
+      id: `node-${Date.now()}`, parentId: activeModule.value.id, title: editorForm.value.title,
+      totalUnits: editorForm.value.totalUnits || 0, completedUnits: 0, unitLabel: editorForm.value.unitLabel || '项', expectedDate: editorForm.value.expectedDate || undefined, children: []
     }
     if (!activeModule.value.children) activeModule.value.children = []
     activeModule.value.children.push(newNode)
-    }
-    closeEditAddModal()
-    }
+  }
+  closeEditAddModal()
+  
+  // 【新增】操作完成后，立即同步到本地缓存
+  localStorage.setItem(`sync_store_${props.userId}`, JSON.stringify(planData.value))
+}
 
-    const resetEntirePlan = () => {
-    if (window.confirm('警告！确定清除吗？')) {
+   const resetEntirePlan = () => {
+  if (window.confirm('警告！确定清除吗？')) {
     planData.value = initData(props.userId)
-    globalStore.value[props.userId] = planData.value
+    globalStore.value[props.userId] = planData.value 
+    
+    // 【新增】重置后，立即覆盖本地缓存
+    localStorage.setItem(`sync_store_${props.userId}`, JSON.stringify(planData.value))
+    
     goHome()
-    }
-    }
+  }
+}
 
-    const deleteNode = (nodeId: string) => { if (window.confirm('确定删除该节点及下属层级吗？')) deleteNodeFromTree(planData.value, nodeId) }
-
+   const deleteNode = (nodeId: string) => { 
+    if (window.confirm('确定删除该节点及下属层级吗？')) {
+        deleteNodeFromTree(planData.value, nodeId)
+        // 【新增】删除后，立即同步到本地缓存
+        localStorage.setItem(`sync_store_${props.userId}`, JSON.stringify(planData.value))
+    }
+}
     // --- 打卡与撤销核心逻辑 ---
     const showCheckInModal = ref(false);
     const checkInMode = ref<'add'|'undo'>('add'); // 标识当前操作类型
@@ -313,26 +331,28 @@
     showCheckInModal.value = true
     }
 
-    const submitCheckIn = () => {
-    if (targetModule.value && checkInForm.value.completedUnits > 0) {
+  const submitCheckIn = () => {
+  if (targetModule.value && checkInForm.value.completedUnits > 0) {
     if (checkInMode.value === 'add') {
-    targetModule.value.completedUnits += checkInForm.value.completedUnits
-    if (targetModule.value.completedUnits >= targetModule.value.totalUnits) {
-    targetModule.value.completedUnits = targetModule.value.totalUnits
-    targetModule.value.actualDate = checkInForm.value.actualDate
-    }
-    targetModule.value.note = checkInForm.value.note
+        targetModule.value.completedUnits += checkInForm.value.completedUnits
+        if (targetModule.value.completedUnits >= targetModule.value.totalUnits) {
+            targetModule.value.completedUnits = targetModule.value.totalUnits
+            targetModule.value.actualDate = checkInForm.value.actualDate
+        }
+        targetModule.value.note = checkInForm.value.note
     } else {
-    // 撤销逻辑
-    targetModule.value.completedUnits -= checkInForm.value.completedUnits
-    if (targetModule.value.completedUnits <= 0) {
-    targetModule.value.completedUnits = 0
-    targetModule.value.actualDate = undefined // 进度清零则撤销日期
+        targetModule.value.completedUnits -= checkInForm.value.completedUnits
+        if (targetModule.value.completedUnits <= 0) {
+            targetModule.value.completedUnits = 0
+            targetModule.value.actualDate = undefined 
+        }
     }
-    }
-    }
-    showCheckInModal.value = false
-    }
+  }
+  showCheckInModal.value = false
+  
+  // 【新增】打卡或撤销完成后，立即同步到本地缓存
+  localStorage.setItem(`sync_store_${props.userId}`, JSON.stringify(planData.value))
+}
 
     // 解决问题四：监听属性变化，强制从本地全局池拉取
     watch(() => props.userId, (newId) => {
