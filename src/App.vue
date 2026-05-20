@@ -61,7 +61,7 @@
                                 <div class="mt-6 flex flex-col gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
                                     <div v-for="item in [{l:'组件强调',v:'color'},{l:'背景色底',v:'bgColor'},{l:'全局文字',v:'textColor'}]" :key="item.v" class="flex items-center justify-between">
                                         <label class="text-xs opacity-60">{{ item.l }}</label>
-                                        <input type="color" v-model="currentTheme[item.v]" @input="updateCustomTheme" class="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0">
+                                        <input type="color" v-model="(currentTheme as any)[item.v]" @input="updateCustomTheme" class="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0">
                                     </div>
                                 </div>
                             </div>
@@ -99,7 +99,8 @@
     // 核心模式定义
     type Mode = 'him' | 'bond' | 'her'
     const currentMode = ref<Mode>('him')
-    const pillRef = ref<HTMLElement | null>(null)
+    // @ts-ignore
+const pillRef = ref<HTMLElement | null>(null)
 
     const modes: { id: Mode, label: string }[] = [
     { id: 'him', label: 'Him' },
