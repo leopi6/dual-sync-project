@@ -188,15 +188,15 @@
     id: `root-${userId}`, parentId: null, title: '请填写全局大目标', totalUnits: 0, completedUnits: 0, unitLabel: '进度', expectedDate: undefined, children: []
     })
 
-const loadLocalData = (userId: string): PlanNode => {
+    const loadLocalData = (userId: string): PlanNode => {
     const local = localStorage.getItem(`sync_store_${userId}`)
     return local ? JSON.parse(local) : initData(userId)
-}
+    }
 
-const globalStore = ref<Record<string, PlanNode>>({
+    const globalStore = ref<Record<string, PlanNode>>({
     him: loadLocalData('him'),
     her: loadLocalData('her')
-})
+    })
 
     const planData = ref<PlanNode>(globalStore.value[props.userId])
     const activeModule = ref<PlanNode>(planData.value)
@@ -246,6 +246,12 @@ const globalStore = ref<Record<string, PlanNode>>({
     return isNaN(pct) ? 0 : Math.min(Math.max(pct, 0), 100)
     })
 
+    // === 绝对的真理：强制持久化方法 ===
+    const persistData = () => {
+    calculateProgressInTree(planData.value) // 保存前必须强制更新所有父节点进度
+    localStorage.setItem(`sync_store_${props.userId}`, JSON.stringify(planData.value))
+    }
+
     const showAddModal = ref(false); const showEditModal = ref(false);
     const isEditingRoot = ref(false); const editingNodeId = ref<string | null>(null);
     const editorForm = ref({ title: '', totalUnits: 0, unitLabel: '', expectedDate: '' })
@@ -274,48 +280,43 @@ const globalStore = ref<Record<string, PlanNode>>({
     }
 
     const submitEditorForm = () => {
-  if (!editorForm.value.title) return
-  if (showEditModal.value) {
+    if (!editorForm.value.title) return
+    if (showEditModal.value) {
     modifyNodeInTree(planData.value, editingNodeId.value!, {
-      title: editorForm.value.title, totalUnits: nodeFormTotalValueIsLocked.value ? undefined : editorForm.value.totalUnits,
-      unitLabel: nodeFormTotalValueIsLocked.value ? undefined : editorForm.value.unitLabel, expectedDate: editorForm.value.expectedDate || undefined,
+    title: editorForm.value.title, totalUnits: nodeFormTotalValueIsLocked.value ? undefined : editorForm.value.totalUnits,
+    unitLabel: nodeFormTotalValueIsLocked.value ? undefined : editorForm.value.unitLabel, expectedDate: editorForm.value.expectedDate || undefined,
     })
-  } else if (showAddModal.value) {
+    } else if (showAddModal.value) {
     const newNode: PlanNode = {
-      id: `node-${Date.now()}`, parentId: activeModule.value.id, title: editorForm.value.title,
-      totalUnits: editorForm.value.totalUnits || 0, completedUnits: 0, unitLabel: editorForm.value.unitLabel || '项', expectedDate: editorForm.value.expectedDate || undefined, children: []
+    id: `node-${Date.now()}`, parentId: activeModule.value.id, title: editorForm.value.title,
+    totalUnits: editorForm.value.totalUnits || 0, completedUnits: 0, unitLabel: editorForm.value.unitLabel || '项', expectedDate: editorForm.value.expectedDate || undefined, children: []
     }
     if (!activeModule.value.children) activeModule.value.children = []
     activeModule.value.children.push(newNode)
-  }
-  closeEditAddModal()
-  
-  // 【新增】操作完成后，立即同步到本地缓存
-  localStorage.setItem(`sync_store_${props.userId}`, JSON.stringify(planData.value))
-}
-
-   const resetEntirePlan = () => {
-  if (window.confirm('警告！确定清除吗？')) {
-    planData.value = initData(props.userId)
-    globalStore.value[props.userId] = planData.value 
-    
-    // 【新增】重置后，立即覆盖本地缓存
-    localStorage.setItem(`sync_store_${props.userId}`, JSON.stringify(planData.value))
-    
-    goHome()
-  }
-}
-
-   const deleteNode = (nodeId: string) => { 
-    if (window.confirm('确定删除该节点及下属层级吗？')) {
-        deleteNodeFromTree(planData.value, nodeId)
-        // 【新增】删除后，立即同步到本地缓存
-        localStorage.setItem(`sync_store_${props.userId}`, JSON.stringify(planData.value))
     }
-}
+    closeEditAddModal()
+    persistData() // 保存并更新
+    }
+
+    const resetEntirePlan = () => {
+    if (window.confirm('警告！确定清除吗？')) {
+    planData.value = initData(props.userId)
+    globalStore.value[props.userId] = planData.value
+    persistData() // 保存并更新
+    goHome()
+    }
+    }
+
+    const deleteNode = (nodeId: string) => {
+    if (window.confirm('确定删除该节点及下属层级吗？')) {
+    deleteNodeFromTree(planData.value, nodeId)
+    persistData() // 保存并更新
+    }
+    }
+
     // --- 打卡与撤销核心逻辑 ---
     const showCheckInModal = ref(false);
-    const checkInMode = ref<'add'|'undo'>('add'); // 标识当前操作类型
+    const checkInMode = ref<'add'|'undo'>('add');
     const targetModule = ref<PlanNode | null>(null)
     const getToday = () => new Date().toISOString().split('T')[0]
     const checkInForm = ref({ completedUnits: 0, actualDate: getToday(), note: '' })
@@ -324,37 +325,34 @@ const globalStore = ref<Record<string, PlanNode>>({
     targetModule.value = module
     checkInMode.value = mode
     checkInForm.value = {
-    completedUnits: mode === 'add' ? (module.totalUnits - module.completedUnits) : module.completedUnits, // 智能填充预期值
+    completedUnits: mode === 'add' ? (module.totalUnits - module.completedUnits) : module.completedUnits,
     actualDate: getToday(),
     note: module.note || ''
     }
     showCheckInModal.value = true
     }
 
-  const submitCheckIn = () => {
-  if (targetModule.value && checkInForm.value.completedUnits > 0) {
+    const submitCheckIn = () => {
+    if (targetModule.value && checkInForm.value.completedUnits > 0) {
     if (checkInMode.value === 'add') {
-        targetModule.value.completedUnits += checkInForm.value.completedUnits
-        if (targetModule.value.completedUnits >= targetModule.value.totalUnits) {
-            targetModule.value.completedUnits = targetModule.value.totalUnits
-            targetModule.value.actualDate = checkInForm.value.actualDate
-        }
-        targetModule.value.note = checkInForm.value.note
-    } else {
-        targetModule.value.completedUnits -= checkInForm.value.completedUnits
-        if (targetModule.value.completedUnits <= 0) {
-            targetModule.value.completedUnits = 0
-            targetModule.value.actualDate = undefined 
-        }
+    targetModule.value.completedUnits += checkInForm.value.completedUnits
+    if (targetModule.value.completedUnits >= targetModule.value.totalUnits) {
+    targetModule.value.completedUnits = targetModule.value.totalUnits
+    targetModule.value.actualDate = checkInForm.value.actualDate
     }
-  }
-  showCheckInModal.value = false
-  
-  // 【新增】打卡或撤销完成后，立即同步到本地缓存
-  localStorage.setItem(`sync_store_${props.userId}`, JSON.stringify(planData.value))
-}
+    targetModule.value.note = checkInForm.value.note
+    } else {
+    targetModule.value.completedUnits -= checkInForm.value.completedUnits
+    if (targetModule.value.completedUnits <= 0) {
+    targetModule.value.completedUnits = 0
+    targetModule.value.actualDate = undefined
+    }
+    }
+    }
+    showCheckInModal.value = false
+    persistData() // 重点：打卡后强制刷新并归总写入硬盘
+    }
 
-    // 解决问题四：监听属性变化，强制从本地全局池拉取
     watch(() => props.userId, (newId) => {
     planData.value = globalStore.value[newId]
     goHome()
@@ -377,13 +375,11 @@ const globalStore = ref<Record<string, PlanNode>>({
         border-radius: 10px;
     }
 
-    /* 问题三修复：绝对定位的水位算法 */
     .liquid-wave {
         width: 200%;
         height: 200%;
         position: absolute;
         left: -50%;
-        /* 核心：根据进度百分比动态计算 top 绝对高度 */
         top: calc(100% - v-bind('safePercentage') * 1%);
         border-radius: 40%;
         animation: spin 6s linear infinite;
