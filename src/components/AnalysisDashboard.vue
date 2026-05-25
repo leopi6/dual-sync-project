@@ -303,10 +303,6 @@
     return map
     })
 
-    const getIntensityColor = (count: number, max: number) => {
-    if (count === 0) return 'rgba(255,255,255,0.04)'
-    return 'rgba(255,255,255,0.08)' // 纯净中枢：彻底去掉冷暖色，返璞归真不焦虑
-    }
 
     const getSingleTaskColor = (task: any) => {
     const isDone = task.totalUnits > 0 && task.completedUnits >= task.totalUnits

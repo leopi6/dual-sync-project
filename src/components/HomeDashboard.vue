@@ -144,10 +144,10 @@
     if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
     async (pos) => await fetchWeatherData(currentUser, pos.coords.latitude, pos.coords.longitude),
-    (err) => {
+    () => {
     const fallback = currentUser === 'him' ? { lat: 1.34, lng: 103.68, city: 'Singapore' } : { lat: 25.04, lng: 102.70, city: 'Kunming' }
     fetchWeatherData(currentUser, fallback.lat, fallback.lng, fallback.city)
-    },
+},
     { timeout: 5000 }
     )
     }
