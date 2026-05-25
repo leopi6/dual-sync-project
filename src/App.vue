@@ -18,17 +18,15 @@
         <canvas ref="canvasRef" class="absolute inset-0 pointer-events-none opacity-30 -z-0"></canvas>
 
         <header class="pt-12 pb-6 px-6 relative z-10 flex items-center justify-between gap-4 max-w-7xl mx-auto">
-            <button @click="dashboardRef?.goHome" class="w-12 h-12 glass-card flex items-center justify-center border-white/5 hover:bg-white/10 active:scale-95 transition-all rounded-2xl flex-shrink-0" style="color: var(--text-color, #ffffff);">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+            <button @click="navigate('home')"
+                    class="w-12 h-12 glass-card flex items-center justify-center border-white/5 hover:bg-white/10 active:scale-95 transition-all rounded-2xl flex-shrink-0"
+                    style="color: var(--text-color, #ffffff);"
+                    :class="currentView === 'home' ? 'opacity-0 pointer-events-none' : 'opacity-100'">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             </button>
 
-            <div class="relative w-full max-w-[280px] h-12 bg-black/20 rounded-2xl p-1 backdrop-blur-xl border border-white/10 flex shadow-inner">
-                <div ref="pillRef" class="absolute top-1 bottom-1 w-[calc(33.33%-0.25rem)] rounded-xl z-0 transition-transform duration-500 cubic-bezier(0.34, 1.56, 0.64, 1)" :style="pillStyle"></div>
-                <button v-for="mode in modes" :key="mode.id" @click="switchMode(mode.id)"
-                        class="flex-1 relative z-10 text-[11px] font-black tracking-widest transition-colors flex items-center justify-center uppercase active:scale-95"
-                        :style="{ color: currentMode === mode.id ? '#ffffff' : 'rgba(255,255,255,0.4)' }">
-                    {{ mode.label }}
-                </button>
+            <div class="flex-1 text-center font-black tracking-widest uppercase text-sm transition-all duration-300" style="color: var(--text-color, #ffffff);">
+                {{ viewTitleMap[currentView] }}
             </div>
 
             <button @click="showSettingsModal = true" class="w-12 h-12 glass-card flex items-center justify-center border-white/5 hover:bg-white/10 active:scale-95 transition-all rounded-2xl flex-shrink-0" style="color: var(--text-color, #ffffff);">
@@ -36,10 +34,28 @@
             </button>
         </header>
 
-        <main class="px-4 relative z-10 flex-1 overflow-y-auto w-full max-w-7xl mx-auto custom-scrollbar">
+        <main class="px-4 relative z-10 flex-1 overflow-y-auto w-full max-w-7xl mx-auto custom-scrollbar h-[calc(100vh-140px)]">
             <Transition name="slide-fade" mode="out-in">
-                <LearningDashboard ref="dashboardRef" v-if="currentMode !== 'bond'" :userId="currentMode" :key="'dash-'+currentMode" />
-                <AnalysisDashboard v-else :initialUserId="'her'" :key="'ana-'+currentMode" />
+
+                <HomeDashboard v-if="currentView === 'home'"
+                               :initialUser="currentUser"
+                               @update:user="(u) => currentUser = u"
+                               @navigate="navigate" />
+
+                <LearningDashboard v-else-if="currentView === 'study'"
+                                   :userId="currentUser === 'bond' ? 'her' : currentUser"
+                                   :key="'study-'+currentUser" />
+
+                <div v-else-if="currentView === 'sport' || currentView === 'sleep'" class="glass-card h-full flex flex-col items-center justify-center p-6 text-center shadow-inner relative overflow-hidden text-white" style="color: var(--text-color, #ffffff);">
+                    <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/40"></div>
+                    <svg class="w-12 h-12 mb-4 animate-pulse relative z-10 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                    <div class="text-sm font-black tracking-widest uppercase relative z-10 text-white/90">模块云端构建中</div>
+                    <div class="text-[10px] mt-2 opacity-50 relative z-10 font-mono">Data Schema Mapping...</div>
+                </div>
+
+                <AnalysisDashboard v-else-if="currentView === 'analysis'"
+                                   :initialUserId="currentUser === 'bond' ? 'her' : currentUser"
+                                   :key="'ana-'+currentUser" />
             </Transition>
         </main>
 
@@ -119,23 +135,31 @@
 </template>
 
 <script setup lang="ts">
-    import { ref, computed, onMounted } from 'vue'
+    import { ref, onMounted } from 'vue'
+    import HomeDashboard from './components/HomeDashboard.vue'
     import LearningDashboard from './components/LearningDashboard.vue'
     import AnalysisDashboard from './components/AnalysisDashboard.vue'
 
-    const dashboardRef = ref<InstanceType<typeof LearningDashboard> | null>(null)
+    // --- 路由与状态核心 ---
+    type ViewMode = 'home' | 'study' | 'sport' | 'sleep' | 'analysis'
+    type UserMode = 'her' | 'bond' | 'him'
 
-    type Mode = 'her' | 'bond' | 'him'
-    const currentMode = ref<Mode>('her')
-    // @ts-ignore
-    const pillRef = ref<HTMLElement | null>(null)
+    const currentView = ref<ViewMode>('home')
+    const currentUser = ref<UserMode>('her')
 
-    const modes: { id: Mode, label: string }[] = [
-    { id: 'her', label: 'LH (Her)' },
-    { id: 'bond', label: '分析' },
-    { id: 'him', label: 'HYL (His)' }
-    ]
+    const viewTitleMap: Record<ViewMode, string> = {
+    home: '中心控制台',
+    study: '学业演进系统',
+    sport: '机能训练矩阵',
+    sleep: '昼夜节律重塑',
+    analysis: '核心数据分析'
+    }
 
+    const navigate = (view: ViewMode) => {
+    currentView.value = view
+    }
+
+    // --- 视觉引擎与配置核心 (保留原逻辑) ---
     const themes = [
     { name: '极光蓝', color: '#3b82f6', glow: 'rgba(59, 130, 246, 0.5)', bgColor: '#060818', textColor: '#ffffff' },
     { name: '樱花粉', color: '#ec4899', glow: 'rgba(236, 72, 153, 0.5)', bgColor: '#1a0a2e', textColor: '#ffffff' },
@@ -158,7 +182,7 @@
 
     onMounted(() => { applyTheme(currentTheme.value) })
 
-    // 全新的背景精调状态
+    // 背景精调状态
     const customBgUrl = ref<string | null>(localStorage.getItem('sync_custom_bg'))
     const defaultBgConfig = { blur: 60, opacity: 50, mode: 'cover' }
     const bgConfig = ref(JSON.parse(localStorage.getItem('sync_bg_config') || JSON.stringify(defaultBgConfig)))
@@ -170,13 +194,12 @@
 
     const handleBackgroundUpload = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0]
-    if (file && file.size < 8 * 1024 * 1024) { // 放宽到 8MB 应对高清图
+    if (file && file.size < 8 * 1024 * 1024) {
     const reader = new FileReader()
     reader.onload = (e) => {
     const dataUrl = e.target?.result as string
     customBgUrl.value = dataUrl
     localStorage.setItem('sync_custom_bg', dataUrl)
-    // 上传新图时重置回最优初始参数
     bgConfig.value = { ...defaultBgConfig }
     saveBgConfig()
     }
@@ -189,17 +212,6 @@
     localStorage.removeItem('sync_custom_bg');
     localStorage.removeItem('sync_bg_config')
     }
-
-    const pillStyle = computed(() => {
-    const index = modes.findIndex(m => m.id === currentMode.value)
-    return {
-    transform: `translateX(${index * 100}%)`,
-    backgroundColor: 'var(--accent-theme)',
-    boxShadow: `0 0 25px var(--accent-glow)`
-    }
-    })
-
-    const switchMode = (mode: Mode) => { currentMode.value = mode }
 </script>
 
 <style scoped>
@@ -242,7 +254,6 @@
         height: 0;
     }
 
-    /* 美化原生 range 滑块 */
     input[type=range] {
         -webkit-appearance: none;
         background: rgba(255,255,255,0.1);
