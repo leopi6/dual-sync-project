@@ -1,27 +1,15 @@
 <template>
-    <div ref="appBgRef"
-         class="min-h-screen w-full transition-all duration-700 ease-in-out pb-24 relative overflow-hidden"
-         :style="[{ backgroundColor: currentTheme.bgColor }]">
+    <LoginView v-if="!isLoggedIn" @auth-success="onAuthSuccess" />
+
+    <div v-else ref="appBgRef" class="min-h-screen w-full transition-all duration-700 ease-in-out pb-24 relative overflow-hidden" :style="[{ backgroundColor: currentTheme.bgColor }]">
 
         <div v-if="customBgUrl" class="absolute inset-0 -z-10 transition-all duration-300"
-             :style="{
-             backgroundImage: `url(${customBgUrl})`,
-             backgroundSize: bgConfig.mode,
-             backgroundPosition: 'center' ,
-             backgroundRepeat: 'no-repeat' ,
-             filter: `blur(${bgConfig.blur}px)`,
-             opacity: bgConfig.opacity / 100,
-             transform: bgConfig.blur>
-            10 ? 'scale(1.15)' : 'scale(1)'
-            }">
+             :style="{ backgroundImage: `url(${customBgUrl})`, backgroundSize: bgConfig.mode, backgroundPosition: 'center', backgroundRepeat: 'no-repeat', filter: `blur(${bgConfig.blur}px)`, opacity: bgConfig.opacity / 100, transform: bgConfig.blur > 10 ? 'scale(1.15)' : 'scale(1)' }">
         </div>
         <canvas ref="canvasRef" class="absolute inset-0 pointer-events-none opacity-30 -z-0"></canvas>
 
         <header class="pt-12 pb-6 px-6 relative z-10 flex items-center justify-between gap-4 max-w-7xl mx-auto">
-            <button @click="navigate('home')"
-                    class="w-12 h-12 glass-card flex items-center justify-center border-white/5 hover:bg-white/10 active:scale-95 transition-all rounded-2xl flex-shrink-0"
-                    style="color: var(--text-color, #ffffff);"
-                    :class="currentView === 'home' ? 'opacity-0 pointer-events-none' : 'opacity-100'">
+            <button @click="navigate('home')" class="w-12 h-12 glass-card flex items-center justify-center border-white/5 hover:bg-white/10 active:scale-95 transition-all rounded-2xl flex-shrink-0" style="color: var(--text-color, #ffffff);" :class="currentView === 'home' ? 'opacity-0 pointer-events-none' : 'opacity-100'">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             </button>
 
@@ -29,33 +17,26 @@
                 {{ viewTitleMap[currentView] }}
             </div>
 
-            <button @click="showSettingsModal = true" class="w-12 h-12 glass-card flex items-center justify-center border-white/5 hover:bg-white/10 active:scale-95 transition-all rounded-2xl flex-shrink-0" style="color: var(--text-color, #ffffff);">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-            </button>
+            <div class="flex items-center gap-2">
+                <button @click="logout" class="w-12 h-12 glass-card flex items-center justify-center border-white/5 hover:bg-red-500/20 active:scale-95 transition-all rounded-2xl flex-shrink-0 text-white/50 hover:text-red-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
+                <button @click="showSettingsModal = true" class="w-12 h-12 glass-card flex items-center justify-center border-white/5 hover:bg-white/10 active:scale-95 transition-all rounded-2xl flex-shrink-0" style="color: var(--text-color, #ffffff);">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                </button>
+            </div>
         </header>
 
         <main class="px-4 relative z-10 flex-1 overflow-y-auto w-full max-w-7xl mx-auto custom-scrollbar h-[calc(100vh-140px)]">
             <Transition name="slide-fade" mode="out-in">
-
-                <HomeDashboard v-if="currentView === 'home'"
-                               :initialUser="currentUser"
-                               @update:user="(u) => currentUser = u"
-                               @navigate="navigate" />
-
-                <LearningDashboard v-else-if="currentView === 'study'"
-                                   :userId="currentUser === 'bond' ? 'her' : currentUser"
-                                   :key="'study-'+currentUser" />
-
-                <div v-else-if="currentView === 'sport' || currentView === 'sleep'" class="glass-card h-full flex flex-col items-center justify-center p-6 text-center shadow-inner relative overflow-hidden text-white" style="color: var(--text-color, #ffffff);">
+                <HomeDashboard v-if="currentView === 'home'" :initialUser="currentUser" @update:user="(u) => currentUser = u" @navigate="navigate" />
+                <LearningDashboard v-else-if="currentView === 'study'" :userId="currentUser === 'bond' ? 'her' : currentUser" :key="'study-'+currentUser" />
+                <div v-else-if="currentView === 'sport' || currentView === 'sleep'" class="glass-card h-full flex flex-col items-center justify-center p-6 text-center shadow-inner relative overflow-hidden text-white">
                     <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/40"></div>
                     <svg class="w-12 h-12 mb-4 animate-pulse relative z-10 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
                     <div class="text-sm font-black tracking-widest uppercase relative z-10 text-white/90">模块云端构建中</div>
-                    <div class="text-[10px] mt-2 opacity-50 relative z-10 font-mono">Data Schema Mapping...</div>
                 </div>
-
-                <AnalysisDashboard v-else-if="currentView === 'analysis'"
-                                   :initialUserId="currentUser === 'bond' ? 'her' : currentUser"
-                                   :key="'ana-'+currentUser" />
+                <AnalysisDashboard v-else-if="currentView === 'analysis'" :initialUserId="currentUser === 'bond' ? 'her' : currentUser" :key="'ana-'+currentUser" />
             </Transition>
         </main>
 
@@ -70,58 +51,25 @@
                             <div>
                                 <label class="block text-[10px] opacity-50 mb-3 uppercase tracking-widest font-bold">权威色彩美学预设</label>
                                 <div class="grid grid-cols-5 gap-2">
-                                    <button v-for="theme in themes" :key="theme.name" @click="applyTheme(theme)"
-                                            class="h-10 rounded-xl transition-all border-2 flex items-center justify-center active:scale-90"
-                                            :style="{ backgroundColor: theme.color, borderColor: currentTheme.name === theme.name ? 'white' : 'transparent', boxShadow: currentTheme.name === theme.name ? `0 0 15px ${theme.color}` : 'none' }"></button>
-                                </div>
-                                <div class="mt-4 flex flex-col gap-3 bg-white/5 p-4 rounded-xl border border-white/5">
-                                    <div class="flex items-center justify-between">
-                                        <label class="text-xs opacity-60">强调色 (组件)：</label>
-                                        <input type="color" v-model="(currentTheme as any).color" @input="updateCustomTheme" class="w-8 h-8 rounded cursor-pointer bg-transparent border-0">
-                                    </div>
-                                    <div class="flex items-center justify-between">
-                                        <label class="text-xs opacity-60">背景色 (纯色底)：</label>
-                                        <input type="color" v-model="(currentTheme as any).bgColor" @input="updateCustomTheme" class="w-8 h-8 rounded cursor-pointer bg-transparent border-0">
-                                    </div>
+                                    <button v-for="theme in themes" :key="theme.name" @click="applyTheme(theme)" class="h-10 rounded-xl transition-all border-2 flex items-center justify-center active:scale-90" :style="{ backgroundColor: theme.color, borderColor: currentTheme.name === theme.name ? 'white' : 'transparent', boxShadow: currentTheme.name === theme.name ? `0 0 15px ${theme.color}` : 'none' }"></button>
                                 </div>
                             </div>
-
                             <div>
                                 <label class="block text-[10px] opacity-50 mb-3 uppercase tracking-widest font-bold">深空背景影像</label>
                                 <div class="flex flex-col gap-3">
-                                    <div v-if="!customBgUrl" class="aspect-[16/9] glass-card border-dashed border-white/20 rounded-2xl flex items-center justify-center bg-black/30 overflow-hidden relative">
-                                        <span class="opacity-30 text-xs px-4 text-center">载入高清图以激活背景精调引擎</span>
-                                    </div>
                                     <input ref="fileInputRef" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="handleBackgroundUpload">
                                     <button v-if="!customBgUrl" @click="fileInputRef?.click()" class="w-full py-4 rounded-xl font-black tracking-widest text-sm transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg" style="background-color: var(--accent-theme); color: #fff;">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg> 载入新背景
                                     </button>
-
                                     <div v-if="customBgUrl" class="bg-black/40 p-4 rounded-2xl border border-white/10 space-y-4">
                                         <div class="flex items-center justify-between mb-2">
                                             <span class="text-xs font-bold text-white/80">🎨 背景精调编辑器</span>
-                                            <button @click="fileInputRef?.click()" class="text-[10px] text-blue-400 font-bold px-2 py-1 rounded bg-blue-500/20 active:scale-90">更换图片</button>
+                                            <button @click="fileInputRef?.click()" class="text-[10px] text-blue-400 font-bold px-2 py-1 rounded bg-blue-500/20 active:scale-90">更换</button>
                                         </div>
-
-                                        <div class="flex bg-white/5 rounded-lg p-1 border border-white/5">
-                                            <button v-for="m in [{val:'cover', label:'填充拉伸'}, {val:'contain', label:'安全适应'}]"
-                                                    :key="m.val" @click="bgConfig.mode = m.val; saveBgConfig()"
-                                                    class="flex-1 text-xs py-1.5 rounded-md font-bold transition-all"
-                                                    :class="bgConfig.mode === m.val ? 'bg-white/20 text-white shadow-md' : 'text-white/40'">
-                                                {{ m.label }}
-                                            </button>
-                                        </div>
-
                                         <div class="space-y-1">
-                                            <div class="flex justify-between text-[10px] text-white/50"><label>模糊度 (沉浸感)</label><span>{{ bgConfig.blur }}px</span></div>
+                                            <div class="flex justify-between text-[10px] text-white/50"><label>模糊度</label><span>{{ bgConfig.blur }}px</span></div>
                                             <input type="range" v-model.number="bgConfig.blur" @input="saveBgConfig" min="0" max="100" class="w-full accent-blue-500">
                                         </div>
-
-                                        <div class="space-y-1">
-                                            <div class="flex justify-between text-[10px] text-white/50"><label>透明度 (防干扰)</label><span>{{ bgConfig.opacity }}%</span></div>
-                                            <input type="range" v-model.number="bgConfig.opacity" @input="saveBgConfig" min="0" max="100" class="w-full accent-blue-500">
-                                        </div>
-
                                         <button @click="clearCustomBackground" class="w-full mt-2 py-2.5 text-xs rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/30 active:scale-95 transition-all font-bold border border-red-500/20">卸载当前背景</button>
                                     </div>
                                 </div>
@@ -136,30 +84,34 @@
 
 <script setup lang="ts">
     import { ref, onMounted } from 'vue'
+    import LoginView from './components/LoginView.vue'
     import HomeDashboard from './components/HomeDashboard.vue'
     import LearningDashboard from './components/LearningDashboard.vue'
     import AnalysisDashboard from './components/AnalysisDashboard.vue'
 
-    // --- 路由与状态核心 ---
     type ViewMode = 'home' | 'study' | 'sport' | 'sleep' | 'analysis'
     type UserMode = 'her' | 'bond' | 'him'
 
+    const isLoggedIn = ref(false)
     const currentView = ref<ViewMode>('home')
     const currentUser = ref<UserMode>('her')
 
-    const viewTitleMap: Record<ViewMode, string> = {
-    home: '中心控制台',
-    study: '学业演进系统',
-    sport: '机能训练矩阵',
-    sleep: '昼夜节律重塑',
-    analysis: '核心数据分析'
+    const viewTitleMap: Record<ViewMode, string> = { home: '中心控制台', study: '学业演进系统', sport: '机能训练矩阵', sleep: '昼夜节律重塑', analysis: '核心数据分析' }
+
+    const navigate = (view: ViewMode) => { currentView.value = view }
+
+    const onAuthSuccess = (userId: UserMode) => {
+    currentUser.value = userId
+    isLoggedIn.value = true
     }
 
-    const navigate = (view: ViewMode) => {
-    currentView.value = view
+    // 核心功能：安全注销并退回登录界面
+    const logout = () => {
+    localStorage.removeItem('sync_current_user')
+    isLoggedIn.value = false
+    currentView.value = 'home'
     }
 
-    // --- 视觉引擎与配置核心 (保留原逻辑) ---
     const themes = [
     { name: '极光蓝', color: '#3b82f6', glow: 'rgba(59, 130, 246, 0.5)', bgColor: '#060818', textColor: '#ffffff' },
     { name: '樱花粉', color: '#ec4899', glow: 'rgba(236, 72, 153, 0.5)', bgColor: '#1a0a2e', textColor: '#ffffff' },
@@ -170,8 +122,6 @@
     const currentTheme = ref({...themes[0]})
 
     const applyTheme = (theme: typeof themes[0]) => { currentTheme.value = { ...theme }; updateGlobalVars() }
-    const updateCustomTheme = () => { currentTheme.value.name = '自定义'; currentTheme.value.glow = currentTheme.value.color + '80'; updateGlobalVars() }
-
     const updateGlobalVars = () => {
     const root = document.documentElement
     root.style.setProperty('--accent-theme', currentTheme.value.color)
@@ -180,13 +130,18 @@
     root.style.setProperty('--bg-base', currentTheme.value.bgColor)
     }
 
-    onMounted(() => { applyTheme(currentTheme.value) })
+    onMounted(() => {
+    const savedUser = localStorage.getItem('sync_current_user')
+    if (savedUser) {
+    currentUser.value = savedUser as UserMode
+    isLoggedIn.value = true
+    }
+    applyTheme(currentTheme.value)
+    })
 
-    // 背景精调状态
     const customBgUrl = ref<string | null>(localStorage.getItem('sync_custom_bg'))
     const defaultBgConfig = { blur: 60, opacity: 50, mode: 'cover' }
     const bgConfig = ref(JSON.parse(localStorage.getItem('sync_bg_config') || JSON.stringify(defaultBgConfig)))
-
     const saveBgConfig = () => { localStorage.setItem('sync_bg_config', JSON.stringify(bgConfig.value)) }
 
     const showSettingsModal = ref(false)
@@ -208,9 +163,7 @@
     }
 
     const clearCustomBackground = () => {
-    customBgUrl.value = null;
-    localStorage.removeItem('sync_custom_bg');
-    localStorage.removeItem('sync_bg_config')
+    customBgUrl.value = null; localStorage.removeItem('sync_custom_bg'); localStorage.removeItem('sync_bg_config')
     }
 </script>
 
