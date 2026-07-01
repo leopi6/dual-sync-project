@@ -128,7 +128,7 @@
             <Transition name="fade-scale">
                 <div v-if="showCheckInModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
                     <div class="glass-card w-full max-w-md p-6 relative border-white/20 shadow-2xl" style="color: var(--text-color, #ffffff);">
-                        <h3 class="text-lg font-black mb-2">{{ checkInMode === 'add' ? '学习指标打卡' : '逆向撤销进度' }}</h3>
+                        <h3 class="text-lg font-black mb-2">{{ checkInMode === 'add' ? CHECKIN_TITLE : '逆向撤销进度' }}</h3>
                         <p class="opacity-50 text-xs mb-4">实时水位: {{ targetModule?.completedUnits }} / {{ targetModule?.totalUnits }} {{ targetModule?.unitLabel }}</p>
                         <div class="space-y-4">
                             <div>
@@ -160,7 +160,15 @@
 <script setup lang="ts">
     import { ref, computed, watch } from 'vue'
 
-    const props = defineProps<{ userId: string }>()
+    const props = defineProps<{
+    userId: string,
+    storageKey?: string,        // 存储命名空间，study 默认 sync_store，sport 传 sync_sport
+    checkInTitle?: string,      // 打卡弹窗标题
+    rootTitlePlaceholder?: string  // 根节点默认标题
+    }>()
+    const STORAGE = props.storageKey || 'sync_store'
+    const CHECKIN_TITLE = props.checkInTitle || '指标打卡'
+    const ROOT_PLACEHOLDER = props.rootTitlePlaceholder || '请填写全局大目标'
     const currentThemeColor = computed(() => getComputedStyle(document.documentElement).getPropertyValue('--accent-theme').trim() || '#3b82f6')
     const currentThemeGlow = computed(() => getComputedStyle(document.documentElement).getPropertyValue('--accent-glow').trim() || 'rgba(59, 130, 246, 0.5)')
 
@@ -183,10 +191,10 @@
     unitLabel: string; expectedDate?: string; actualDate?: string; note?: string; children?: PlanNode[];
     }
     const initData = (userId: string): PlanNode => ({
-    id: `root-${userId}`, parentId: null, title: '请填写全局大目标', totalUnits: 0, completedUnits: 0, unitLabel: '进度', expectedDate: undefined, children: []
+    id: `root-${userId}`, parentId: null, title: ROOT_PLACEHOLDER, totalUnits: 0, completedUnits: 0, unitLabel: '进度', expectedDate: undefined, children: []
     })
     const loadLocalData = (userId: string): PlanNode => {
-    const local = localStorage.getItem(`sync_store_${userId}`)
+    const local = localStorage.getItem(`${STORAGE}_${userId}`)
     return local ? JSON.parse(local) : initData(userId)
     }
 
@@ -245,7 +253,7 @@
 
     const persistData = () => {
     calculateProgressInTree(planData.value)
-    localStorage.setItem(`sync_store_${props.userId}`, JSON.stringify(planData.value))
+    localStorage.setItem(`${STORAGE}_${props.userId}`, JSON.stringify(planData.value))
     }
 
     const showAddModal = ref(false); const showEditModal = ref(false);

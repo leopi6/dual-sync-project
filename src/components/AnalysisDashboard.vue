@@ -28,7 +28,7 @@
             </button>
         </div>
 
-        <div class="flex-1 glass-card rounded-3xl relative overflow-hidden bg-black/40 shadow-inner transform-gpu touch-none">
+        <div ref="treeContainerRef" class="flex-1 glass-card rounded-3xl relative overflow-hidden bg-black/40 shadow-inner transform-gpu touch-none">
 
             <div v-if="viewMode === 'tree'" class="absolute inset-0 origin-top-left will-change-transform transform-gpu"
                  @mousedown="onDragStart" @mousemove="onDragMove" @mouseup="onDragEnd" @mouseleave="onDragEnd"
@@ -207,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-    import { ref, computed, onMounted, reactive, watch, nextTick } from 'vue'
+    import { ref, computed, onMounted, onUnmounted, reactive, watch, nextTick, markRaw } from 'vue'
 
     const props = defineProps<{ initialUserId: string }>()
 
@@ -219,6 +219,7 @@
     const activeNode = ref<any>(null)
     const showAnalysisReport = ref(false)
     const calendarScrollRef = ref<HTMLElement | null>(null)
+    const treeContainerRef = ref<HTMLElement | null>(null)
 
     const switchUser = (u: string) => { targetUser.value = u; loadAndLayoutTree() }
 
@@ -233,10 +234,11 @@
 
     const loadAndLayoutTree = () => {
     const local = localStorage.getItem(`sync_store_${targetUser.value}`)
-    if (local) { rawData.value = JSON.parse(local); calcProgress(rawData.value) }
+    if (local) { rawData.value = markRaw(JSON.parse(local)); calcProgress(rawData.value) }
     else rawData.value = null
     activeNode.value = rawData.value
-    resetView()
+    calculateTreeLayout()
+    nextTick(resetView)
     }
 
     const getWeekNumber = (dateStr: string) => {
@@ -394,12 +396,19 @@
     const offset = reactive({ x: 100, y: 100 })
 
     const resetView = () => {
-    zoom.value = 1.0
-    if (treeNodes.value.length > 0) {
-    const rootX = treeNodes.value[0].x
-    offset.x = (window.innerWidth / 2) - rootX - 50
-    offset.y = 80
-    }
+    const nodes = treeNodes.value
+    if (!nodes.length) { zoom.value = 1; offset.x = 100; offset.y = 100; return }
+    const xs = nodes.map(n => n.x); const ys = nodes.map(n => n.y)
+    const minX = Math.min(...xs) - 70, maxX = Math.max(...xs) + 70
+    const minY = Math.min(...ys) - 30, maxY = Math.max(...ys) + 60
+    const treeW = Math.max(maxX - minX, 1); const treeH = Math.max(maxY - minY, 1)
+    const el = treeContainerRef.value
+    const availW = (el?.clientWidth || window.innerWidth) - 24
+    const availH = (el?.clientHeight || window.innerHeight * 0.6) - 24
+    const s = Math.min(availW / treeW, availH / treeH, 1.5)
+    zoom.value = s
+    offset.x = 12 + (availW - treeW * s) / 2 - minX * s
+    offset.y = 12 + (availH - treeH * s) / 2 - minY * s
     }
 
     const doZoom = (delta: number) => { zoom.value = Math.max(0.2, Math.min(zoom.value + delta, 3.0)) }
@@ -436,12 +445,19 @@
     const spiVal = (comp / (total * 0.5)).toFixed(2)
     const spiStatus = Number(spiVal) > 1.0 ? 'A (超前)' : (Number(spiVal) < 0.8 ? 'C (滞后)' : 'B (正常)')
 
-    const sviVal = (Math.random() * 10 + 5).toFixed(1) + '%'
-    const sviStatus = parseFloat(sviVal) < 10 ? 'A (极稳)' : (parseFloat(sviVal) > 15 ? 'C (波动)' : 'B (一般)')
+    const leaves = flattenTasks(node)
+    const todayStr = new Date().toISOString().split('T')[0]
 
-    let overdueCount = 0; const todayStr = new Date().toISOString().split('T')[0]
-    flattenTasks(node).forEach(t => { if(t.expectedDate < todayStr && t.completedUnits < t.totalUnits) overdueCount++ })
-    const oerVal = ((overdueCount / (flattenTasks(node).length || 1)) * 100).toFixed(1) + '%'
+    // 准时率 (OTR)：已完成且有截止日/实际完成日的叶子任务中，按时完成的比例
+    const finished = leaves.filter((t: any) => t.totalUnits > 0 && t.completedUnits >= t.totalUnits && t.expectedDate && t.actualDate)
+    const onTime = finished.filter((t: any) => t.actualDate <= t.expectedDate).length
+    const otrNum = finished.length ? (onTime / finished.length) * 100 : 0
+    const otrVal = finished.length ? otrNum.toFixed(0) + '%' : '—'
+    const otrStatus = !finished.length ? 'B (待数据)' : (otrNum >= 90 ? 'A (守时)' : (otrNum < 60 ? 'C (拖延)' : 'B (一般)'))
+
+    let overdueCount = 0
+    leaves.forEach((t: any) => { if (t.expectedDate && t.expectedDate < todayStr && t.completedUnits < t.totalUnits) overdueCount++ })
+    const oerVal = ((overdueCount / (leaves.length || 1)) * 100).toFixed(1) + '%'
     const oerStatus = parseFloat(oerVal) < 5 ? 'A (清爽)' : (parseFloat(oerVal) > 20 ? 'C (堆积)' : 'B (一般)')
 
     return [
@@ -452,10 +468,10 @@
     action: '将当前庞大的复习范畴切分为微型颗粒度，降低启动焦虑。'
     },
     {
-    title: '执行状态稳定性 (SVI)', value: sviVal, status: sviStatus, color: '#eab308',
-    meaning: '统计周期内打卡密度的离散系数。平稳输入远胜于报复性冲刺。',
-    issue: parseFloat(sviVal) > 15 ? '打卡曲线起伏较大，极易受心理周期与疲劳度干扰。' : '节奏如磐石般平稳。',
-    action: '锁定底线任务目标（如每日必看网课一章节），强制建立习惯通路。'
+    title: '准时完成率 (OTR)', value: otrVal, status: otrStatus, color: '#eab308',
+    meaning: '已闭环任务中，在截止日当天或之前完成的占比，反映计划兑现的可信度。',
+    issue: !finished.length ? '尚无可统计的已完成任务，先把第一批节点打卡闭环。' : (otrNum < 60 ? '多数任务拖到截止后才完成，计划与执行存在系统性偏差。' : '兑现度良好，按时交付能力稳定。'),
+    action: '给关键节点预留一天缓冲，把截止日设在真实 deadline 之前。'
     },
     {
     title: '逾期池积压率 (OER)', value: oerVal, status: oerStatus, color: '#ec4899',
@@ -475,8 +491,8 @@
     activeNode.value = findRealNode(rawData.value, node.id); calculateTreeLayout()
     }
 
-    watch(activeNode, () => calculateTreeLayout(), { deep: true })
     onMounted(() => { loadAndLayoutTree(); document.body.style.overflow = 'hidden' })
+    onUnmounted(() => { document.body.style.overflow = '' })
 </script>
 
 <style scoped>

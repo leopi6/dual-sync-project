@@ -1,14 +1,14 @@
 <template>
     <LoginView v-if="!isLoggedIn" @auth-success="onAuthSuccess" />
 
-    <div v-else ref="appBgRef" class="min-h-screen w-full transition-all duration-700 ease-in-out pb-24 relative overflow-hidden" :style="[{ backgroundColor: currentTheme.bgColor }]">
+    <div v-else ref="appBgRef" class="h-[100dvh] flex flex-col w-full transition-all duration-700 ease-in-out relative overflow-hidden" :style="[{ backgroundColor: currentTheme.bgColor }]">
 
         <div v-if="customBgUrl" class="absolute inset-0 -z-10 transition-all duration-300"
              :style="{ backgroundImage: `url(${customBgUrl})`, backgroundSize: bgConfig.mode, backgroundPosition: 'center', backgroundRepeat: 'no-repeat', filter: `blur(${bgConfig.blur}px)`, opacity: bgConfig.opacity / 100, transform: bgConfig.blur > 10 ? 'scale(1.15)' : 'scale(1)' }">
         </div>
         <canvas ref="canvasRef" class="absolute inset-0 pointer-events-none opacity-30 -z-0"></canvas>
 
-        <header class="pt-12 pb-6 px-6 relative z-10 flex items-center justify-between gap-4 max-w-7xl mx-auto">
+        <header class="pb-5 px-6 relative z-10 flex items-center justify-between gap-4 w-full max-w-7xl mx-auto flex-shrink-0" style="padding-top: max(2.75rem, env(safe-area-inset-top));">
             <button @click="navigate('home')" class="w-12 h-12 glass-card flex items-center justify-center border-white/5 hover:bg-white/10 active:scale-95 transition-all rounded-2xl flex-shrink-0" style="color: var(--text-color, #ffffff);" :class="currentView === 'home' ? 'opacity-0 pointer-events-none' : 'opacity-100'">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             </button>
@@ -27,18 +27,27 @@
             </div>
         </header>
 
-        <main class="px-4 relative z-10 flex-1 overflow-y-auto w-full max-w-7xl mx-auto custom-scrollbar h-[calc(100vh-140px)]">
+        <main class="px-4 relative z-10 flex-1 min-h-0 overflow-y-auto w-full max-w-7xl mx-auto custom-scrollbar">
             <Transition name="slide-fade" mode="out-in">
                 <HomeDashboard v-if="currentView === 'home'" :initialUser="currentUser" @update:user="(u) => currentUser = u" @navigate="navigate" />
                 <LearningDashboard v-else-if="currentView === 'study'" :userId="currentUser === 'bond' ? 'her' : currentUser" :key="'study-'+currentUser" />
-                <div v-else-if="currentView === 'sport' || currentView === 'sleep'" class="glass-card h-full flex flex-col items-center justify-center p-6 text-center shadow-inner relative overflow-hidden text-white">
-                    <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/40"></div>
-                    <svg class="w-12 h-12 mb-4 animate-pulse relative z-10 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                    <div class="text-sm font-black tracking-widest uppercase relative z-10 text-white/90">模块云端构建中</div>
-                </div>
+                <LearningDashboard v-else-if="currentView === 'sport'" :userId="currentUser === 'bond' ? 'her' : currentUser" storage-key="sync_sport" check-in-title="运动量打卡" root-title-placeholder="请填写训练总目标" :key="'sport-'+currentUser" />
+                <SleepDashboard v-else-if="currentView === 'sleep'" :userId="currentUser === 'bond' ? 'her' : currentUser" :key="'sleep-'+currentUser" />
                 <AnalysisDashboard v-else-if="currentView === 'analysis'" :initialUserId="currentUser === 'bond' ? 'her' : currentUser" :key="'ana-'+currentUser" />
             </Transition>
         </main>
+
+        <!-- 底部 Tab 导航（移动端主导航，适配全面屏底部安全区） -->
+        <nav class="relative z-20 flex items-stretch justify-around bg-black/40 backdrop-blur-xl border-t border-white/10 px-2 pt-2 flex-shrink-0" style="padding-bottom: max(0.5rem, env(safe-area-inset-bottom));">
+            <button v-for="t in tabs" :key="t.view" @click="navigate(t.view)" class="flex-1 flex flex-col items-center gap-1 py-1 rounded-xl active:scale-90 transition-all" :style="{ color: currentView === t.view ? 'var(--accent-theme)' : 'rgba(255,255,255,0.42)' }">
+                <svg v-if="t.view === 'home'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3v-6h6v6h3a1 1 0 001-1V10"></path></svg>
+                <svg v-else-if="t.view === 'study'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                <svg v-else-if="t.view === 'sport'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <svg v-else-if="t.view === 'sleep'" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                <span class="text-[9px] font-bold tracking-wide">{{ t.label }}</span>
+            </button>
+        </nav>
 
         <Teleport to="body">
             <Transition name="fade-scale">
@@ -83,10 +92,11 @@
 </template>
 
 <script setup lang="ts">
-    import { ref, onMounted } from 'vue'
+    import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
     import LoginView from './components/LoginView.vue'
     import HomeDashboard from './components/HomeDashboard.vue'
     import LearningDashboard from './components/LearningDashboard.vue'
+    import SleepDashboard from './components/SleepDashboard.vue'
     import AnalysisDashboard from './components/AnalysisDashboard.vue'
 
     type ViewMode = 'home' | 'study' | 'sport' | 'sleep' | 'analysis'
@@ -96,7 +106,15 @@
     const currentView = ref<ViewMode>('home')
     const currentUser = ref<UserMode>('her')
 
-    const viewTitleMap: Record<ViewMode, string> = { home: '中心控制台', study: '学业演进系统', sport: '机能训练矩阵', sleep: '昼夜节律重塑', analysis: '核心数据分析' }
+    const viewTitleMap: Record<ViewMode, string> = { home: '中心控制台', study: '学业演进系统', sport: '运动打卡系统', sleep: '早睡早起系统', analysis: '核心数据分析' }
+
+    const tabs = [
+    { view: 'home', label: '首页' },
+    { view: 'study', label: '学业' },
+    { view: 'sport', label: '运动' },
+    { view: 'sleep', label: '睡眠' },
+    { view: 'analysis', label: '分析' }
+    ] as const
 
     const navigate = (view: ViewMode) => { currentView.value = view }
 
@@ -121,7 +139,7 @@
     ]
     const currentTheme = ref({...themes[0]})
 
-    const applyTheme = (theme: typeof themes[0]) => { currentTheme.value = { ...theme }; updateGlobalVars() }
+    const applyTheme = (theme: typeof themes[0]) => { currentTheme.value = { ...theme }; updateGlobalVars(); localStorage.setItem('sync_theme', theme.name) }
     const updateGlobalVars = () => {
     const root = document.documentElement
     root.style.setProperty('--accent-theme', currentTheme.value.color)
@@ -130,14 +148,78 @@
     root.style.setProperty('--bg-base', currentTheme.value.bgColor)
     }
 
+    // ===== 深空星空背景（修复原本空置的 canvas，移动端友好、可暂停） =====
+    const canvasRef = ref<HTMLCanvasElement | null>(null)
+    const appBgRef = ref<HTMLElement | null>(null)
+    let rafId = 0
+    let cleanupStar: (() => void) | null = null
+
+    const initStarfield = () => {
+    const canvas = canvasRef.value
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    let stars: { x: number, y: number, r: number, a: number, tw: number }[] = []
+
+    const resize = () => {
+    canvas.width = window.innerWidth * dpr
+    canvas.height = window.innerHeight * dpr
+    canvas.style.width = window.innerWidth + 'px'
+    canvas.style.height = window.innerHeight + 'px'
+    const count = Math.min(70, Math.floor(window.innerWidth / 8))
+    stars = Array.from({ length: count }, () => ({
+    x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+    r: (Math.random() * 1.2 + 0.3) * dpr, a: Math.random() * Math.PI * 2, tw: Math.random() * 0.02 + 0.004
+    }))
+    }
+    resize()
+
+    const draw = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    for (const s of stars) {
+    s.a += s.tw
+    const alpha = 0.25 + Math.abs(Math.sin(s.a)) * 0.6
+    ctx.beginPath()
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`
+    ctx.fill()
+    }
+    if (!reduce) rafId = requestAnimationFrame(draw)
+    }
+    draw()
+
+    const onVisibility = () => {
+    if (document.hidden) { cancelAnimationFrame(rafId) }
+    else if (!reduce) { cancelAnimationFrame(rafId); rafId = requestAnimationFrame(draw) }
+    }
+    window.addEventListener('resize', resize)
+    document.addEventListener('visibilitychange', onVisibility)
+    cleanupStar = () => {
+    cancelAnimationFrame(rafId)
+    window.removeEventListener('resize', resize)
+    document.removeEventListener('visibilitychange', onVisibility)
+    }
+    }
+
     onMounted(() => {
     const savedUser = localStorage.getItem('sync_current_user')
     if (savedUser) {
     currentUser.value = savedUser as UserMode
     isLoggedIn.value = true
     }
-    applyTheme(currentTheme.value)
+    const savedTheme = localStorage.getItem('sync_theme')
+    const matched = themes.find(t => t.name === savedTheme)
+    applyTheme(matched || currentTheme.value)
+    if (isLoggedIn.value) nextTick(initStarfield)
     })
+
+    watch(isLoggedIn, (v) => {
+    if (v) nextTick(initStarfield)
+    else { cleanupStar?.(); cleanupStar = null }
+    })
+    onUnmounted(() => cleanupStar?.())
 
     const customBgUrl = ref<string | null>(localStorage.getItem('sync_custom_bg'))
     const defaultBgConfig = { blur: 60, opacity: 50, mode: 'cover' }
@@ -149,17 +231,36 @@
 
     const handleBackgroundUpload = (event: Event) => {
     const file = (event.target as HTMLInputElement).files?.[0]
-    if (file && file.size < 8 * 1024 * 1024) {
+    if (!file) return
     const reader = new FileReader()
     reader.onload = (e) => {
-    const dataUrl = e.target?.result as string
-    customBgUrl.value = dataUrl
+    const img = new Image()
+    img.onload = () => {
+    // 压缩到最长边 1600px，再转 JPEG，避免大图把 localStorage 撑爆
+    const maxDim = 1600
+    let w = img.width, h = img.height
+    if (w > maxDim || h > maxDim) {
+    const scale = maxDim / Math.max(w, h)
+    w = Math.round(w * scale); h = Math.round(h * scale)
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = w; canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(img, 0, 0, w, h)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.82)
+    try {
     localStorage.setItem('sync_custom_bg', dataUrl)
+    customBgUrl.value = dataUrl
     bgConfig.value = { ...defaultBgConfig }
     saveBgConfig()
+    } catch (err) {
+    alert('这张图片压缩后仍然过大，浏览器本地存储放不下，请换一张更小的图片。')
+    }
+    }
+    img.src = e.target?.result as string
     }
     reader.readAsDataURL(file)
-    }
     }
 
     const clearCustomBackground = () => {
